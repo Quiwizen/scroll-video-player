@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -128,8 +129,56 @@ fn generate_play_order(video_count: usize, last_played: Vec<usize>) -> Result<Ve
     Ok(order)
 }
 
+/// 安装全局 panic 钩子：任何线程上的 panic 都会被记录到日志文件与 stderr，
+/// 便于崩溃后回溯原因。配合 release profile 的 `panic = "unwind"`，
+/// 多数 tokio worker 上的 panic 只会导致该任务失败而非整个进程退出。
+fn install_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let loc = info
+            .location()
+            .map(|l| l.to_string())
+            .unwrap_or_else(|| "unknown location".to_string());
+        let payload = if let Some(s) = info.payload().downcast_ref::<&str>() {
+            (*s).to_string()
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "unknown panic payload".to_string()
+        };
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let report = format!(
+            "[player-tauri panic] time={ts} location={loc}\nmessage: {payload}\n{info}\n{sep}\n",
+            sep = "----------------------------------------"
+        );
+
+        // 优先写到 ~/Library/Logs/player-tauri/panic.log，失败则退回 /tmp
+        let home = std::env::var("HOME").unwrap_or_default();
+        let log_path = if home.is_empty() {
+            "/tmp/player-tauri-panic.log".to_string()
+        } else {
+            format!("{home}/Library/Logs/player-tauri/panic.log")
+        };
+
+        if let Some(parent) = std::path::Path::new(&log_path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+            .and_then(|mut f| f.write_all(report.as_bytes()));
+
+        eprintln!("{report}");
+    }));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    install_panic_hook();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
