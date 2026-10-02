@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>短视频播放器</title>
+    <script type="module" src="/main.js" defer></script>
+  </head>
+  <body>
+    <div id="app">
+      <div id="video-container">
+        <video id="video-player" playsinline webkit-playsinline></video>
+        <div id="video-info">
+          <div id="video-title"></div>
+        </div>
+        <div id="speed-control">
+          <button class="speed-btn" data-speed="0.5">0.5x</button>
+          <button class="speed-btn active" data-speed="1">1x</button>
+          <button class="speed-btn" data-speed="1.5">1.5x</button>
+          <button class="speed-btn" data-speed="2">2x</button>
+        </div>
+        <div id="progress-bar">
+          <div id="progress-fill"></div>
+        </div>
+      </div>
+      <div id="loading" class="hidden">加载中...</div>
+      <div id="no-videos" class="hidden">
+        <p>未找到视频文件</p>
+        <p>请选择视频文件夹</p>
+        <button id="select-folder-btn" class="action-btn">选择文件夹</button>
+      </div>
+      <button id="settings-btn" class="settings-btn" title="设置视频路径">⚙️</button>
+      <div id="path-info" class="path-info hidden"></div>
+    </div>
+  </body>
+</html>
